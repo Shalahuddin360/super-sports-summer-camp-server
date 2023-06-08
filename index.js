@@ -25,6 +25,20 @@ async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
+        const classCollection = client.db("sportDb").collection("class");
+        app.get('/classes', async (req, res) => {
+            const query = {};
+            // const query = { numberOfStudents: { $gt: 17 } };
+            const options = {
+                // sort matched documents in descending order by rating
+                sort: { "numberOfStudents": -1 },
+                // Include only the `title` and `imdb` fields in the returned document
+                // projection: { _id: 0, title: 1, imdb: 1 },
+            };
+            const result = await classCollection.find(query,options).toArray()
+            res.send(result)
+        })
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
