@@ -26,6 +26,8 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
         const classCollection = client.db("sportDb").collection("class");
+        const selectCollection = client.db("sportDb").collection("select");
+
         app.get('/classes', async (req, res) => {
             const query = {};
             // const query = { numberOfStudents: { $gt: 17 } };
@@ -35,8 +37,25 @@ async function run() {
                 // Include only the `title` and `imdb` fields in the returned document
                 // projection: { _id: 0, title: 1, imdb: 1 },
             };
-            const result = await classCollection.find(query,options).toArray()
-            res.send(result)
+            const result = await classCollection.find(query, options).toArray()
+            res.send(result);
+        })
+
+        //select class collection apis
+        app.get('/select', async (req, res) => {
+            const email = req.query.email;
+    
+            if (!email) {
+                res.send([]); 
+            }
+            const query = { email: email };
+            const result = await selectCollection.find(query).toArray();
+            res.send(result);
+        })
+        app.post('/select', async (req, res) => {
+            const course = req.body;
+            const result = await selectCollection.insertOne(course);
+            res.send(result);
         })
 
         // Send a ping to confirm a successful connection
