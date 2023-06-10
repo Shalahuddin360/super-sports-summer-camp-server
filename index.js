@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.pjz0bfk.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -25,9 +25,18 @@ async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
+        const usersCollection = client.db("sportDb").collection("users");
         const classCollection = client.db("sportDb").collection("class");
         const selectCollection = client.db("sportDb").collection("select");
 
+    // student related apis 
+       app.post('/users',async(req,res)=>{
+         const user = req.body;
+         const result = await usersCollection.insertOne(user);
+         res.send(result);
+       })
+
+    //class related apis
         app.get('/classes', async (req, res) => {
             const query = {};
             // const query = { numberOfStudents: { $gt: 17 } };
@@ -44,7 +53,7 @@ async function run() {
         //select class collection apis
         app.get('/select', async (req, res) => {
             const email = req.query.email;
-    
+            // console.log(email);
             if (!email) {
                 res.send([]); 
             }
@@ -55,6 +64,12 @@ async function run() {
         app.post('/select', async (req, res) => {
             const course = req.body;
             const result = await selectCollection.insertOne(course);
+            res.send(result);
+        })
+        app.delete('/select/:id',async(req,res)=>{
+            const id = req.params.id;
+            const query = {_id : new ObjectId(id)}
+            const result = await selectCollection.deleteOne(query);
             res.send(result);
         })
 
