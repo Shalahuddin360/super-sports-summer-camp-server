@@ -129,7 +129,11 @@ async function run() {
             const result = await classCollection.find(query, options).toArray()
             res.send(result);
         })
-
+        app.post('/classes',async(req,res)=>{
+            const newClass = req.body;
+            const result = await classCollection.insertOne(newClass)
+            res.send(result);
+        })
         //select class collection apis
         app.get('/select', verifyJWT, async (req, res) => {
             const email = req.query.email;
