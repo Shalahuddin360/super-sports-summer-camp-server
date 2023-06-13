@@ -6,7 +6,21 @@ require('dotenv').config()
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(cors());
+// app.use(cors());
+const corsConfig = {
+    origin: '*',
+    credentials: true,
+    method: [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS"
+    ]
+}
+app.use(cors(corsConfig));
+app.options("", cors(corsConfig))
 app.use(express.json());
 
 const verifyJWT = (req, res, next) => {
@@ -39,7 +53,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        client.connect();
         const usersCollection = client.db("sportDb").collection("users");
         const classCollection = client.db("sportDb").collection("class");
         const selectCollection = client.db("sportDb").collection("select");
@@ -73,23 +87,23 @@ async function run() {
         //3.check admin
         app.get('/users/admin/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
-            if(req.decoded.email !==email){
-                res.send({admin:false})
+            if (req.decoded.email !== email) {
+                res.send({ admin: false })
             }
             const query = { email: email };
             const user = await usersCollection.findOne(query);
             const result = { admin: user.role === 'admin' };
             res.send(result);
         })
-        app.get('/users/instructor/:email',verifyJWT,async (req,res)=>{
+        app.get('/users/instructor/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
-            if(req.decoded.email !==email){
+            if (req.decoded.email !== email) {
 
-                res.send({instructor:false})
+                res.send({ instructor: false })
             }
-            const query ={email:email}
+            const query = { email: email }
             const user = await usersCollection.findOne(query);
-            const result ={instructor:user.role ==='instructor'};
+            const result = { instructor: user.role === 'instructor' };
             res.send(result);
         })
         app.patch('/users/admin/:id', async (req, res) => {
@@ -129,7 +143,7 @@ async function run() {
             const result = await classCollection.find(query, options).toArray()
             res.send(result);
         })
-        app.post('/classes',async(req,res)=>{
+        app.post('/classes', async (req, res) => {
             const newClass = req.body;
             const result = await classCollection.insertOne(newClass)
             res.send(result);
