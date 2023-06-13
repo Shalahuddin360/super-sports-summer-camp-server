@@ -58,6 +58,7 @@ async function run() {
         const usersCollection = client.db("sportDb").collection("users");
         const classCollection = client.db("sportDb").collection("class");
         const selectCollection = client.db("sportDb").collection("select");
+        const paymentCollection = client.db("sportDb").collection("payments");
 
         app.post('/jwt', (req, res) => {
             const user = req.body;
@@ -187,6 +188,17 @@ async function run() {
             res.send({
                 clientSecret : paymentIntent.client_secret
             })
+        })
+        app.get('/payments',async(req,res)=>{
+            const result = await paymentCollection.find().toArray();
+            res.send(result)
+        })
+        app.post('/payments',async(req,res)=>{
+            const payment = req.body;
+            const insertResult = await paymentCollection.insertOne(payment);
+            const query = {_id:{$in:payment.classesId.map(id=>new ObjectId(id))}}
+            const deleteResult = await selectCollection.deleteOne(query)
+            res.send({insertResult,deleteResult});
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
