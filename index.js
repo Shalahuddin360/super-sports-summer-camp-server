@@ -150,6 +150,35 @@ async function run() {
             const result = await classCollection.insertOne(newClass)
             res.send(result);
         })
+
+        app.patch('/classes/approve/:id',async(req,res)=>{
+            const id = req.params.id;
+           const query = { _id: new ObjectId(id) }
+           console.log(query)
+           const updateDoc = {
+            $set: {
+                status: "approve"
+            },
+        };
+        const result = await usersCollection.updateOne(query, updateDoc);
+        res.send(result);
+        })
+
+        //deny 
+        app.patch('/classes/deny/:id',async(req,res)=>{
+            const id = req.params.id;
+            console.log(id)
+           const query = { _id: new ObjectId(id) }
+           const updateDoc = {
+            $set: {
+                status: "deny"
+            },
+        };
+        const result = await usersCollection.updateOne(query, updateDoc);
+        res.send(result);
+        })
+
+
         //select class collection apis
         app.get('/select', verifyJWT, async (req, res) => {
             const email = req.query.email;
@@ -165,6 +194,7 @@ async function run() {
             const result = await selectCollection.find(query).toArray();
             res.send(result);
         })
+
         app.post('/select', async (req, res) => {
             const course = req.body;
             const result = await selectCollection.insertOne(course);
