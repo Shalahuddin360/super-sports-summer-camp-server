@@ -2,6 +2,8 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const nodemailer = require("nodemailer");
+const mg = require('nodemailer-mailgun-transport');
 require('dotenv').config()
 const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 const port = process.env.PORT || 5000;
@@ -24,6 +26,50 @@ app.use(cors(corsConfig));
 app.options("", cors(corsConfig))
 app.use(express.json());
 
+//send payment confirmation email
+// const transporter = nodemailer.createTransport({
+//     host: 'smtp.sendgrid.net',
+//     port: 587,
+//     auth: {
+//         user: "apikey",
+//         pass: process.env.SENDGRID_API_KEY
+//     }
+// })
+
+
+const auth = {
+    auth: {
+      api_key: process.env.EMAIL_PRIVATE_KEY,
+      domain: process.env.EMAIL_DOMAIN
+    }
+  }
+  
+  const  transporter = nodemailer.createTransport(mg(auth));
+
+//send payment confirmation email
+const sendPaymentConfirmationEmail = payment => {
+    transporter.sendMail({
+        from: "shalahuddincse@gmail.com", // verified sender email
+        to: "shalahuddincse@gmail.com", // recipient email
+        subject: "Your Order is confirmed.Enjoy the food soon", // Subject line
+        text: "Hello world!", // plain text body
+        html: `
+        <div>
+         <h2>Payment Confirmed!</h2>
+         <p>Transaction id:${payment.transactionId}</p>
+
+        </div>
+        `, // html body
+    }, function (error, info) {
+        if (error) {
+            console.log(error);
+        } else {
+            console.log('Email sent: ' + info.response);
+        }
+    });
+
+}
+
 const verifyJWT = (req, res, next) => {
     const authorization = req.headers.authorization;
     if (!authorization) {
@@ -35,7 +81,7 @@ const verifyJWT = (req, res, next) => {
             return res.status(401).send({ error: true, message: 'unauthorized access' })
         }
         req.decoded = decoded;
-        next()
+        next();
     })
 }
 
@@ -136,11 +182,10 @@ async function run() {
         app.get('/classes', async (req, res) => {
             const query = {};
             // const query = { numberOfStudents: { $gt: 17 } };
+
             const options = {
                 // sort matched documents in descending order by rating
                 sort: { "numberOfStudents": -1 },
-                // Include only the `title` and `imdb` fields in the returned document
-                // projection: { _id: 0, title: 1, imdb: 1 },
             };
             const result = await classCollection.find(query, options).toArray()
             res.send(result);
@@ -151,30 +196,35 @@ async function run() {
             res.send(result);
         })
 
-        app.patch('/classes/approve/:id',async(req,res)=>{
+        app.patch('/classes/approve/:id', async (req, res) => {
             const id = req.params.id;
-           const query = { _id: new ObjectId(id) }
-           console.log(query)
-           const updateDoc = {
-            $set: {
-                status: "approve"
-            },
-        };
-        const result = await usersCollection.updateOne(query, updateDoc);
-        res.send(result);
+            console.log(id)
+            const query = { _id: new ObjectId(id) };
+
+            const updateDoc = {
+                $set: {
+                    status: "approve"
+                },
+            };
+            const result = await classCollection.updateOne(query, updateDoc);
+            res.send(result);
         })
 
         //deny 
-        app.patch('/classes/deny/:id',async(req,res)=>{
+        app.patch('/classes/deny/:id', async (req, res) => {
+
             const id = req.params.id;
-           const query = { _id: new ObjectId(id) }
-           const updateDoc = {
-            $set: {
-                status: "deny"
-            },
-        };
-        const result = await usersCollection.updateOne(query, updateDoc);
-        res.send(result);
+            console.log(id)
+            const query = { _id: new ObjectId(id) };
+
+            const updateDoc = {
+                $set: {
+                    status: "deny"
+                },
+            };
+            const result = await classCollection.updateOne(query, updateDoc);
+            console.log
+            res.send(result);
         })
 
 
@@ -206,31 +256,63 @@ async function run() {
             res.send(result);
         })
         //create payment intent
-        app.post('/create-payment-intent',verifyJWT,async(req,res)=>{
-            const {price} = req.body;
-            const amount = price *100;
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const { price } = req.body;
+            const amount = price * 100;
             const paymentIntent = await stripe.paymentIntents.create({
-                amount : amount,
-                currency : 'usd',
-                payment_method_types:['card']
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
             });
             res.send({
-                clientSecret : paymentIntent.client_secret
+                clientSecret: paymentIntent.client_secret
             })
         })
-        app.get('/payments',async(req,res)=>{
-            const result = await paymentCollection.find().toArray();
+        app.get('/payments', async (req, res) => {
+
+            const result = await paymentCollection.find().sort({ date: -1 }).toArray();
             res.send(result)
         })
-        app.post('/payments',async(req,res)=>{
+        app.post('/payments', async (req, res) => {
             const payment = req.body;
             const insertResult = await paymentCollection.insertOne(payment);
-            const query = {_id:{$in:payment.classesId.map(id=>new ObjectId(id))}}
-            const deleteResult = await selectCollection.deleteOne(query)
-            res.send({insertResult,deleteResult});
-        })
+            const query = { _id: { $in: payment.classesId.map(id => new ObjectId(id)) } }
+            console.log('queryId', query);
+            // const searchClass = await classCollection.findOne(query);
+            // console.log('searchId', query)
+            // if(searchClass && query){
+            //     const updateDoc = {
+            //         $inc: {
 
-        
+            //          availableSeats: -1,
+            //          enrollOfStudents:+1
+            //         },
+            //     };
+            //     const result = await classCollection.updateOne(query, updateDoc);
+            //     return res.send(result);
+            // }
+            console.log(payment);
+            // send and email confirming payment
+            sendPaymentConfirmationEmail(payment)
+            const deleteResult = await selectCollection.deleteOne(query);
+
+            res.send({ insertResult, deleteResult });
+        })
+        // *****
+        // app.patch('/classes/:id', async (req, res) => {
+        //     const id = req.params.id;
+        //     const query = { _id: new ObjectId(id) }
+        //     const updateDoc = {
+        //         $inc: {
+
+        //          availableSeats: -1,
+        //          enrollOfStudents:+1
+        //         },
+        //     };
+        //     const result = await classCollection.updateOne(query, updateDoc);
+        //     res.send(result);
+        // })
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
